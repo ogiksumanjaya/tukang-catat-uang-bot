@@ -9,6 +9,7 @@ import (
 	"github.com/ogiksumanjaya/repository"
 	"github.com/ogiksumanjaya/usecase"
 	"log"
+	"net/http"
 	"time"
 )
 
@@ -21,6 +22,22 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	// Define a simple handler for health checks or root endpoint
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Start the HTTP server in a separate goroutine
+	go func() {
+		// Start the server on the configured address (localhost:8080)
+		serverHost := cfg.GetServerAddress()
+		log.Println("Starting server on", serverHost)
+		if err := http.ListenAndServe(serverHost, nil); err != nil {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
 
 	bot, updates, err := cfg.InitConfigTelegram()
 	if err != nil {
@@ -138,4 +155,7 @@ func main() {
 			}
 		}
 	}
+
+	// Keep the main process alive
+	select {}
 }
