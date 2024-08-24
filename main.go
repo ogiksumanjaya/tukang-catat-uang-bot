@@ -65,6 +65,12 @@ func main() {
 					continue
 				}
 				lastCommand = "/transfer"
+			case "/report":
+				err := tgReplayUC.GetTransactionReport()
+				if err != nil {
+					continue
+				}
+				lastCommand = "/report"
 			default:
 				if lastCommand == "/masuk" {
 					value, err := tgReplayUC.IncreaseMessageReplayCallback(ctx)
@@ -92,6 +98,12 @@ func main() {
 					lastCommand = ""
 				} else if lastCommand == "/choose_out_category" {
 					tgReplayUC.HandleResponseSelectedCategory(ctx, dataInput, lastCommand)
+					lastCommand = ""
+				} else if lastCommand == "/report" {
+					err := tgReplayUC.GetTransactionReportListCallback(ctx)
+					if err != nil {
+						continue
+					}
 					lastCommand = ""
 				}
 			}

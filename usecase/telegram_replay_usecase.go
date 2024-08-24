@@ -1,14 +1,18 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/ogiksumanjaya/entity"
 	"github.com/ogiksumanjaya/helpers"
 	"github.com/ogiksumanjaya/repository"
+	"github.com/xuri/excelize/v2"
 	"log"
 	"strconv"
+	"time"
 )
 
 type TelegramReplayUsecase struct {
@@ -33,7 +37,7 @@ func NewTelegramReplayUsecase(bot *tgbotapi.BotAPI, update tgbotapi.Update, tele
 
 func (t *TelegramReplayUsecase) StartMessageReplay() {
 	chatID := t.update.Message.Chat.ID
-	msg := tgbotapi.NewMessage(chatID, "Halo! Saya adalah bot pencatat keuangan.\n\nSilahkan gunakan perintah berikut:\n\n/masuk untuk memasukkan pemasukan dan\n/keluar untuk memasukkan pengeluaran.\n/transfer untuk melakukan transfer antar bank/account.")
+	msg := tgbotapi.NewMessage(chatID, "Halo! Saya adalah bot pencatat keuangan.\n\nSilahkan gunakan perintah berikut:\n\n/masuk untuk memasukkan pemasukan dan\n/keluar untuk memasukkan pengeluaran.\n/transfer untuk melakukan transfer antar bank/account.\n/report untuk melihat laporan keuangan.")
 	t.bot.Send(msg)
 }
 
@@ -414,4 +418,95 @@ func (t *TelegramReplayUsecase) HandleResponseTransferToBank(ctx context.Context
 	// send detail transfer
 	msg.Text = "Transfer: " + strconv.Itoa(dataInput.Amount) + "\n" + "Dari Bank: " + dataInput.FromBank + "\n" + "Ke Bank: " + dataInput.ToBank
 	t.bot.Send(msg)
+}
+
+func (t *TelegramReplayUsecase) GetTransactionReport() error {
+	chatID := t.update.Message.Chat.ID
+	username := t.update.Message.From.UserName
+
+	// Check allowed username
+	isAllowed := t.telegramRepo.IsAllowedUsername(username)
+	if !isAllowed {
+		msg := tgbotapi.NewMessage(chatID, "Maaf, kamu tidak diizinkan untuk menggunakan bot ini.")
+		t.bot.Send(msg)
+		return errors.New("username not allowed")
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Silahkan masukan rentang tanggal laporan")
+	msg.ReplyMarkup = helpers.GetDateRangeKeyboardButton()
+	t.bot.Send(msg)
+
+	return nil
+}
+
+func (t *TelegramReplayUsecase) GetTransactionReportListCallback(ctx context.Context) error {
+	chatID := t.update.Message.Chat.ID
+	username := t.update.Message.From.UserName
+	dateRange := t.update.Message.Text
+
+	var startDate time.Time
+	var endDate time.Time
+
+	today := time.Now()
+	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.Local)
+	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Second)
+	startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
+	endOfLastMonth := startOfMonth.Add(-time.Second)
+
+	if dateRange == "Bulan Ini" {
+		startDate = startOfMonth
+		endDate = endOfMonth
+	} else {
+		startDate = startOfLastMonth
+		endDate = endOfLastMonth
+	}
+
+	transactions, err := t.transactionRepo.GetTransactionList(ctx, username, startDate, endDate)
+	if err != nil {
+		return err
+	}
+
+	// Empty Transaction
+	if len(transactions) == 0 {
+		msg := tgbotapi.NewMessage(chatID, "Tidak ada data transaksi pada rentang tanggal tersebut.")
+		t.bot.Send(msg)
+		return nil
+	}
+
+	// Buat file Excel baru menggunakan excelize
+	f := excelize.NewFile()
+	// Tambahkan beberapa data ke dalam file Excel
+	headers := []string{"No", "Tanggal", "Nama Akun", "Kategori", "Keterangan", "Pemasukan", "Pengeluaran"}
+	for i, header := range headers {
+		cell := fmt.Sprintf("%c1", 'A'+i)
+		f.SetCellValue("Sheet1", cell, header)
+	}
+
+	for i, row := range transactions {
+		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", i+2), row.No)
+		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", i+2), row.Date)
+		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", i+2), row.Account)
+		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", i+2), row.Category)
+		f.SetCellValue("Sheet1", fmt.Sprintf("E%d", i+2), row.Description)
+		f.SetCellValue("Sheet1", fmt.Sprintf("F%d", i+2), row.IncomeAmount)
+		f.SetCellValue("Sheet1", fmt.Sprintf("G%d", i+2), row.ExpenseAmount)
+	}
+
+	// Simpan file ke dalam buffer
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		log.Fatal("Failed to write file to buffer:", err)
+	}
+
+	// Mengirim file Excel sebagai attachment
+	file := tgbotapi.FileBytes{
+		Name:  "data.xlsx",
+		Bytes: buf.Bytes(),
+	}
+
+	// Send excel file
+	msg := tgbotapi.NewDocument(chatID, file)
+	t.bot.Send(msg)
+
+	return nil
 }

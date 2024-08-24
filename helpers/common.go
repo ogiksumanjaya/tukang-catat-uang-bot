@@ -26,6 +26,16 @@ type InputTranferValue struct {
 	ToBank   string
 }
 
+type ReportTransaction struct {
+	No            int
+	Date          string
+	Account       string
+	Category      string
+	Description   string
+	IncomeAmount  float64
+	ExpenseAmount float64
+}
+
 func GetValueFromText(text string) (InputValue, error) {
 	var value InputValue
 
@@ -101,6 +111,18 @@ func GetCategoryKeyboardButton(categoryList []entity.Category) tgbotapi.ReplyKey
 		ResizeKeyboard:  true, // Mengatur ukuran tombol agar sesuai dengan lebar layar
 		OneTimeKeyboard: true, // Menyembunyikan keyboard setelah pengguna memilih
 	}
+
+	return keyboard
+}
+
+func GetDateRangeKeyboardButton() tgbotapi.ReplyKeyboardMarkup {
+	// Membuat tombol keyboard untuk memilih rentang tanggal
+	keyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Bulan Ini"),
+			tgbotapi.NewKeyboardButton("Bulan Lalu"),
+		),
+	)
 
 	return keyboard
 }
