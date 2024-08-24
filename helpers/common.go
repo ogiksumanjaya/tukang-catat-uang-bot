@@ -3,17 +3,24 @@ package helpers
 import (
 	"errors"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/ogiksumanjaya/entity"
 	"strconv"
 	"strings"
 )
 
 type InputValue struct {
-	Amount int
-	Note   string
-	Bank   string
+	Username   string
+	Amount     int
+	Note       string
+	Bank       string
+	BankID     int
+	Category   string
+	CategoryID int
+	Type       string // INCOME or EXPENSE
 }
 
 type InputTranferValue struct {
+	Username string
 	Amount   int
 	FromBank string
 	ToBank   string
@@ -52,29 +59,48 @@ func ConvertNominalToInteger(nominal string) (InputTranferValue, error) {
 	return valueTf, nil
 }
 
-func GetBankKeyboardButton(replaceAccount *string) tgbotapi.InlineKeyboardMarkup {
-	bankAccount := []string{"CASH", "BCA", "CIMB", "JENIUS"}
+func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account) tgbotapi.InlineKeyboardMarkup {
+	var filteredBankAccount []entity.Account
 
-	var filteredBankAccount []string
-
-	if replaceAccount != nil {
-		for _, v := range bankAccount {
-			if v != *replaceAccount {
+	if replaceAccountName != nil {
+		for _, v := range bankList {
+			if v.BankName != *replaceAccountName {
 				filteredBankAccount = append(filteredBankAccount, v)
 			}
 		}
 	} else {
-		filteredBankAccount = bankAccount
+		filteredBankAccount = bankList
 	}
 
 	var keyboardButtons []tgbotapi.InlineKeyboardButton
 
 	for _, account := range filteredBankAccount {
-		keyboardButtons = append(keyboardButtons, tgbotapi.NewInlineKeyboardButtonData(account, account))
+		keyboardButtons = append(keyboardButtons, tgbotapi.NewInlineKeyboardButtonData(account.BankName, account.BankName))
 	}
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(keyboardButtons...),
 	)
+	return keyboard
+}
+
+func GetCategoryKeyboardButton(categoryList []entity.Category) tgbotapi.ReplyKeyboardMarkup {
+	var keyboardRows [][]tgbotapi.KeyboardButton
+
+	for _, category := range categoryList {
+		// Setiap tombol dimasukkan ke dalam baris baru untuk membuatnya vertikal
+		row := tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(category.Name),
+		)
+		keyboardRows = append(keyboardRows, row)
+	}
+
+	// Membuat markup keyboard dengan semua baris tombol
+	keyboard := tgbotapi.ReplyKeyboardMarkup{
+		Keyboard:        keyboardRows,
+		ResizeKeyboard:  true, // Mengatur ukuran tombol agar sesuai dengan lebar layar
+		OneTimeKeyboard: true, // Menyembunyikan keyboard setelah pengguna memilih
+	}
+
 	return keyboard
 }
