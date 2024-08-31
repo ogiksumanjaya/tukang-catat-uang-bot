@@ -88,6 +88,12 @@ func main() {
 					continue
 				}
 				lastCommand = "/report"
+			case "/balance":
+				err := tgReplayUC.GetAccountBalance(ctx)
+				if err != nil {
+					continue
+				}
+				lastCommand = ""
 			default:
 				if lastCommand == "/masuk" {
 					value, err := tgReplayUC.IncreaseMessageReplayCallback(ctx)

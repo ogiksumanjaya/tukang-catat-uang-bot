@@ -37,7 +37,7 @@ func NewTelegramReplayUsecase(bot *tgbotapi.BotAPI, update tgbotapi.Update, tele
 
 func (t *TelegramReplayUsecase) StartMessageReplay() {
 	chatID := t.update.Message.Chat.ID
-	msg := tgbotapi.NewMessage(chatID, "Halo! Saya adalah bot pencatat keuangan.\n\nSilahkan gunakan perintah berikut:\n\n/masuk untuk memasukkan pemasukan dan\n/keluar untuk memasukkan pengeluaran.\n/transfer untuk melakukan transfer antar bank/account.\n/report untuk melihat laporan keuangan.")
+	msg := tgbotapi.NewMessage(chatID, "Halo! Saya adalah bot pencatat keuangan.\n\nSilahkan gunakan perintah berikut:\n\n/masuk untuk memasukkan pemasukan dan\n/keluar untuk memasukkan pengeluaran.\n/transfer untuk melakukan transfer antar bank/account.\n/report untuk melihat laporan keuangan.\n/balance untuk melihat saldo account.")
 	t.bot.Send(msg)
 }
 
@@ -222,7 +222,7 @@ func (t *TelegramReplayUsecase) HandleResponseSelectedCategory(ctx context.Conte
 		}
 
 		// Kirim konfirmasi bahwa pemasukan telah tercatat
-		msg := tgbotapi.NewMessage(chatID, "Pemasukan sudah tercatat.")
+		msg := tgbotapi.NewMessage(chatID, "Pemasukan sudah berhasil tercatat.")
 		// send detail pemasukan
 		msg.Text = "Pemasukan: " + strconv.Itoa(dataInput.Amount) + "\n" + "Catatan: " + dataInput.Note + "\n" + "Bank: " + dataInput.Bank + "\n" + "Category: " + dataInput.Category
 		t.bot.Send(msg)
@@ -248,7 +248,7 @@ func (t *TelegramReplayUsecase) HandleResponseSelectedCategory(ctx context.Conte
 		}
 
 		// Kirim konfirmasi bahwa pengeluaran telah tercatat
-		msg := tgbotapi.NewMessage(chatID, "Pengeluaran sudah tercatat.")
+		msg := tgbotapi.NewMessage(chatID, "Pengeluaran sudah berhasil tercatat.")
 		// send detail pengeluaran
 		msg.Text = "Pengeluaran: " + strconv.Itoa(dataInput.Amount) + "\n" + "Catatan: " + dataInput.Note + "\n" + "Bank: " + dataInput.Bank + "\n" + "Category: " + dataInput.Category
 		t.bot.Send(msg)
@@ -506,6 +506,28 @@ func (t *TelegramReplayUsecase) GetTransactionReportListCallback(ctx context.Con
 
 	// Send excel file
 	msg := tgbotapi.NewDocument(chatID, file)
+	t.bot.Send(msg)
+
+	return nil
+}
+
+func (t *TelegramReplayUsecase) GetAccountBalance(ctx context.Context) error {
+	chatID := t.update.Message.Chat.ID
+	username := t.update.Message.From.UserName
+
+	// GetBankList
+	bankList, err := t.accountRepo.GetAccountList(ctx, username)
+	if err != nil {
+		msg := tgbotapi.NewMessage(chatID, "Terjadi kesalahan saat mengambil data bank.")
+		t.bot.Send(msg)
+		return err
+	}
+
+	// Send message to choose bank
+	msg := tgbotapi.NewMessage(chatID, "Saldo account saat ini:")
+	for _, account := range bankList {
+		msg.Text += fmt.Sprintf("\n%s: %s", account.BankName, helpers.FormatRupiah(account.Balance))
+	}
 	t.bot.Send(msg)
 
 	return nil

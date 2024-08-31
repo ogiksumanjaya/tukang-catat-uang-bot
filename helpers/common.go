@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"errors"
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/ogiksumanjaya/entity"
 	"strconv"
@@ -69,7 +70,7 @@ func ConvertNominalToInteger(nominal string) (InputTranferValue, error) {
 	return valueTf, nil
 }
 
-func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account) tgbotapi.InlineKeyboardMarkup {
+func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account) tgbotapi.ReplyKeyboardMarkup {
 	var filteredBankAccount []entity.Account
 
 	if replaceAccountName != nil {
@@ -82,15 +83,24 @@ func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account
 		filteredBankAccount = bankList
 	}
 
-	var keyboardButtons []tgbotapi.InlineKeyboardButton
+	var keyboardButtons [][]tgbotapi.KeyboardButton
 
 	for _, account := range filteredBankAccount {
-		keyboardButtons = append(keyboardButtons, tgbotapi.NewInlineKeyboardButtonData(account.BankName, account.BankName))
+		accountName := fmt.Sprintf("%s (%s)", account.BankName, FormatRupiah(account.Balance))
+		button := tgbotapi.NewKeyboardButton(accountName)
+		keyboardButtons = append(keyboardButtons, tgbotapi.NewKeyboardButtonRow(button))
 	}
 
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(keyboardButtons...),
+	keyboard := tgbotapi.NewReplyKeyboard(
+		keyboardButtons...,
 	)
+
+	// Mengatur properti tambahan dari ReplyKeyboard
+	keyboard.OneTimeKeyboard = true
+	keyboard.ResizeKeyboard = true
+	keyboard.InputFieldPlaceholder = "Pilih Bank"
+	keyboard.Selective = true
+
 	return keyboard
 }
 
@@ -125,4 +135,30 @@ func GetDateRangeKeyboardButton() tgbotapi.ReplyKeyboardMarkup {
 	)
 
 	return keyboard
+}
+
+func FormatRupiah(amount float64) string {
+	// Format number to have comma as thousand separator
+	formatted := fmt.Sprintf("%.2f", amount)
+
+	// Split the formatted string to separate whole number and decimal parts
+	parts := strings.Split(formatted, ".")
+
+	// Insert commas as thousand separators
+	n := len(parts[0])
+	if n > 3 {
+		remainder := n % 3
+		if remainder > 0 {
+			parts[0] = parts[0][:remainder] + "," + parts[0][remainder:]
+		}
+		for i := remainder + 3; i < n; i += 4 {
+			parts[0] = parts[0][:i] + "," + parts[0][i:]
+		}
+	}
+
+	// Combine the whole number part with the decimal part
+	result := parts[0] + "." + parts[1]
+
+	// Add the currency symbol
+	return "Rp" + result
 }
