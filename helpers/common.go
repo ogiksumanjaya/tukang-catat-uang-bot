@@ -70,7 +70,7 @@ func ConvertNominalToInteger(nominal string) (InputTranferValue, error) {
 	return valueTf, nil
 }
 
-func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account) tgbotapi.ReplyKeyboardMarkup {
+func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account) tgbotapi.InlineKeyboardMarkup {
 	var filteredBankAccount []entity.Account
 
 	if replaceAccountName != nil {
@@ -83,22 +83,13 @@ func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account
 		filteredBankAccount = bankList
 	}
 
-	var keyboardButtons [][]tgbotapi.KeyboardButton
+	var keyboardButtons []tgbotapi.InlineKeyboardButton
 
 	for _, account := range filteredBankAccount {
-		button := tgbotapi.NewKeyboardButton(account.BankName)
-		keyboardButtons = append(keyboardButtons, tgbotapi.NewKeyboardButtonRow(button))
+		keyboardButtons = append(keyboardButtons, tgbotapi.NewInlineKeyboardButtonData(account.BankName, account.BankName))
 	}
 
-	keyboard := tgbotapi.NewReplyKeyboard(
-		keyboardButtons...,
-	)
-
-	// Mengatur properti tambahan dari ReplyKeyboard
-	keyboard.OneTimeKeyboard = true
-	keyboard.ResizeKeyboard = true
-	keyboard.InputFieldPlaceholder = "Pilih Bank"
-	keyboard.Selective = true
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(keyboardButtons...))
 
 	return keyboard
 }
