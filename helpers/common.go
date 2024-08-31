@@ -128,27 +128,33 @@ func GetDateRangeKeyboardButton() tgbotapi.ReplyKeyboardMarkup {
 }
 
 func FormatRupiah(amount float64) string {
-	// Format number to have comma as thousand separator
+	// Convert the float to a string with comma as the thousand separator
 	formatted := fmt.Sprintf("%.2f", amount)
-
-	// Split the formatted string to separate whole number and decimal parts
 	parts := strings.Split(formatted, ".")
+	intPart := parts[0]
+	decimalPart := parts[1]
 
-	// Insert commas as thousand separators
-	n := len(parts[0])
-	if n > 3 {
-		remainder := n % 3
-		if remainder > 0 {
-			parts[0] = parts[0][:remainder] + "," + parts[0][remainder:]
+	// Add thousand separators
+	var result []string
+	for i, c := range reverseString(intPart) {
+		if i > 0 && i%3 == 0 {
+			result = append(result, ".")
 		}
-		for i := remainder + 3; i < n; i += 4 {
-			parts[0] = parts[0][:i] + "," + parts[0][i:]
-		}
+		result = append(result, string(c))
 	}
 
-	// Combine the whole number part with the decimal part
-	result := parts[0] + "." + parts[1]
+	// Reverse the string back to its original order
+	formattedIntPart := reverseString(strings.Join(result, ""))
 
-	// Add the currency symbol
-	return "Rp" + result
+	// Combine the integer and decimal parts, and add "Rp" prefix
+	return "Rp" + formattedIntPart + "," + decimalPart
+}
+
+// Helper function to reverse a string
+func reverseString(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }

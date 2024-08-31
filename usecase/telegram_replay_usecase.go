@@ -523,11 +523,18 @@ func (t *TelegramReplayUsecase) GetAccountBalance(ctx context.Context) error {
 		return err
 	}
 
+	totalBalance := 0
+
 	// Send message to choose bank
-	msg := tgbotapi.NewMessage(chatID, "Saldo account saat ini:")
+	msg := tgbotapi.NewMessage(chatID, "Saldo account saat ini:\n")
+	msg.Text += fmt.Sprintf("=========================")
 	for _, account := range bankList {
-		msg.Text += fmt.Sprintf("\n%s: %s", account.BankName, helpers.FormatRupiah(account.Balance))
+		msg.Text += fmt.Sprintf("\n<b>%s</b>: %s", account.BankName, helpers.FormatRupiah(account.Balance))
+		totalBalance += int(account.Balance)
 	}
+	msg.Text += fmt.Sprintf("\n=========================")
+	msg.Text += "\n<b>Total Saldo</b>: " + helpers.FormatRupiah(float64(totalBalance))
+	msg.ParseMode = "HTML"
 	t.bot.Send(msg)
 
 	return nil
