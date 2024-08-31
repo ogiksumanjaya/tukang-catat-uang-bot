@@ -86,8 +86,7 @@ func GetBankKeyboardButton(replaceAccountName *string, bankList []entity.Account
 	var keyboardButtons [][]tgbotapi.KeyboardButton
 
 	for _, account := range filteredBankAccount {
-		accountName := fmt.Sprintf("%s (%s)", account.BankName, FormatRupiah(account.Balance))
-		button := tgbotapi.NewKeyboardButton(accountName)
+		button := tgbotapi.NewKeyboardButton(account.BankName)
 		keyboardButtons = append(keyboardButtons, tgbotapi.NewKeyboardButtonRow(button))
 	}
 
