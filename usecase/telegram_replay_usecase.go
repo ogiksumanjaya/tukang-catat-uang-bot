@@ -84,13 +84,8 @@ func (t *TelegramReplayUsecase) IncreaseMessageReplayCallback(ctx context.Contex
 	// Get value from text
 	value, err := helpers.GetValueFromText(t.update.Message.Text)
 	if err != nil {
-		if err.Error() == "invalid amount" {
-			msg := tgbotapi.NewMessage(chatID, "Nominal yang kamu masukan tidak valid. Silahkan coba lagi.")
-			t.bot.Send(msg)
-		} else {
-			msg := tgbotapi.NewMessage(chatID, "Format yang kamu masukan salah. Silahkan coba lagi.")
-			t.bot.Send(msg)
-		}
+		msg := tgbotapi.NewMessage(chatID, err.Error())
+		t.bot.Send(msg)
 		return helpers.InputValue{}, err
 	}
 
@@ -118,13 +113,8 @@ func (t *TelegramReplayUsecase) DecreaseMessageReplayCallback(ctx context.Contex
 	// Get value from text
 	value, err := helpers.GetValueFromText(t.update.Message.Text)
 	if err != nil {
-		if err.Error() == "invalid amount" {
-			msg := tgbotapi.NewMessage(chatID, "Nominal yang kamu masukan tidak valid. Silahkan coba lagi.")
-			t.bot.Send(msg)
-		} else {
-			msg := tgbotapi.NewMessage(chatID, "Format yang kamu masukan salah. Silahkan coba lagi.")
-			t.bot.Send(msg)
-		}
+		msg := tgbotapi.NewMessage(chatID, err.Error())
+		t.bot.Send(msg)
 		return helpers.InputValue{}, err
 	}
 
@@ -334,13 +324,19 @@ func (t *TelegramReplayUsecase) HandleResponseTransferToBank(ctx context.Context
 	chatID := t.update.CallbackQuery.Message.Chat.ID
 	username := t.update.CallbackQuery.From.UserName
 
-	var dataInputToTrx helpers.InputValue
-	dataInputToTrx.Username = username
-	dataInputToTrx.Amount = dataInput.Amount
-
 	// Handle response dari tombol bank
 	bank := t.update.CallbackQuery.Data
 	dataInput.ToBank = bank
+
+	if dataInput.FromBank == dataInput.ToBank {
+		msg := tgbotapi.NewMessage(chatID, "Bank asal dan tujuan tidak boleh sama.")
+		t.bot.Send(msg)
+		return
+	}
+
+	var dataInputToTrx helpers.InputValue
+	dataInputToTrx.Username = username
+	dataInputToTrx.Amount = dataInput.Amount
 
 	// Get Data Category by Name
 	var dataCategory entity.Category
@@ -415,7 +411,6 @@ func (t *TelegramReplayUsecase) HandleResponseTransferToBank(ctx context.Context
 
 	// Kirim konfirmasi bahwa transfer telah tercatat
 	msg := tgbotapi.NewMessage(chatID, "Transfer sudah tercatat.")
-	// send detail transfer
 	msg.Text = "Transfer: " + strconv.Itoa(dataInput.Amount) + "\n" + "Dari Bank: " + dataInput.FromBank + "\n" + "Ke Bank: " + dataInput.ToBank
 	t.bot.Send(msg)
 }
@@ -447,7 +442,16 @@ func (t *TelegramReplayUsecase) GetTransactionReportListCallback(ctx context.Con
 	var startDate time.Time
 	var endDate time.Time
 
-	today := time.Now()
+	// Load the Asia/Jakarta location
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		return err
+	}
+
+	dateToday := time.Now()
+	today := time.Date(dateToday.Year(), dateToday.Month(), dateToday.Day(), 0, 0, 0, 0, loc)
+
 	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.Local)
 	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Second)
 	startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
@@ -483,13 +487,19 @@ func (t *TelegramReplayUsecase) GetTransactionReportListCallback(ctx context.Con
 	}
 
 	for i, row := range transactions {
+		dateFormated, err := helpers.FormatDateToJakarta(row.Date)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
 		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", i+2), row.No)
-		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", i+2), row.Date)
+		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", i+2), dateFormated)
 		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", i+2), row.Account)
 		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", i+2), row.Category)
 		f.SetCellValue("Sheet1", fmt.Sprintf("E%d", i+2), row.Description)
-		f.SetCellValue("Sheet1", fmt.Sprintf("F%d", i+2), row.IncomeAmount)
-		f.SetCellValue("Sheet1", fmt.Sprintf("G%d", i+2), row.ExpenseAmount)
+		f.SetCellValue("Sheet1", fmt.Sprintf("F%d", i+2), helpers.FormatRupiah(row.IncomeAmount))
+		f.SetCellValue("Sheet1", fmt.Sprintf("G%d", i+2), helpers.FormatRupiah(row.ExpenseAmount))
 	}
 
 	// Simpan file ke dalam buffer

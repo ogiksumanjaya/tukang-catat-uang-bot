@@ -7,6 +7,7 @@ import (
 	"github.com/ogiksumanjaya/entity"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type InputValue struct {
@@ -42,13 +43,13 @@ func GetValueFromText(text string) (InputValue, error) {
 
 	parts := strings.SplitN(text, " ", 2)
 	if len(parts) < 2 {
-		return value, errors.New("invalid format")
+		return value, fmt.Errorf("Format yang kamu masukan salah")
 	}
 
 	// Konversi nominal ke integer
 	amount, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return value, errors.New("invalid amount")
+		return value, fmt.Errorf("Nominal yang kamu masukan salah")
 	}
 
 	value.Amount = amount
@@ -157,4 +158,29 @@ func reverseString(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
+}
+
+func FormatDateToJakarta(utcTimeString string) (string, error) {
+	// Define the format of the input UTC time string
+	layout := "2006-01-02T15:04:05Z"
+
+	// Parse the UTC time string into a time.Time object
+	utcTime, err := time.Parse(layout, utcTimeString)
+	if err != nil {
+		return "", fmt.Errorf("error parsing time: %v", err)
+	}
+
+	// Load the Asia/Jakarta location
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		return "", fmt.Errorf("error loading location: %v", err)
+	}
+
+	// Convert UTC time to Asia/Jakarta timezone
+	jakartaTime := utcTime.In(loc)
+
+	// Format the time as YYYY/MM/DD WIB
+	formattedTime := jakartaTime.Format("2006/01/02") + " WIB"
+
+	return formattedTime, nil
 }
